@@ -1,0 +1,77 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mhchat_backend
+    environment:
+      - MONGODB_URL=mongodb://mongo:27017
+      - DB_NAME=mental_health_db
+      - SECRET_KEY=change-this-in-production-use-env-file
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - model_cache:/root/.cache/huggingface
+    networks:
+      - mhchat_net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mhchat_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - mhchat_net
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7.0
+    container_name: mhchat_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - mhchat_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: mhchat_nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - mhchat_net
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  model_cache:
+
+networks:
+  mhchat_net:
+    driver: bridge
