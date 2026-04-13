@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: mhchat-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt'); nltk.download('stopwords')"
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGODB_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DB_NAME
+        value: mental_health_db
+
+  - type: web
+    name: mhchat-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npx serve -s build -l $PORT
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://mhchat-backend.onrender.com
