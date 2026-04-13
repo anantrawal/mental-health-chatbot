@@ -11,8 +11,14 @@ db = None
 async def connect_db():
     global client, db
     try:
-        client = AsyncIOMotorClient(settings.MONGODB_URL)
+        client = AsyncIOMotorClient(
+            settings.MONGODB_URL,
+            serverSelectionTimeoutMS=5000,
+            tlsAllowInvalidCertificates=False,
+        )
         db = client[settings.DB_NAME]
+        # Test connection
+        await client.admin.command('ping')
         # Create indexes
         await db.users.create_index("email", unique=True)
         await db.users.create_index("username", unique=True)
@@ -21,7 +27,8 @@ async def connect_db():
         logger.info(f"Connected to MongoDB at {settings.MONGODB_URL}")
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
-        raise
+        logger.warning("App starting without MongoDB — fix connection string!")
+        # Don't raise — let the app start so Render detects the port
 
 
 async def close_db():
